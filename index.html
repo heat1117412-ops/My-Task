@@ -2,706 +2,997 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>マイタスク</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- SortableJS (ドラッグ＆ドロップライブラリ) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
   <style>
-    :root {
-      --bg: #f3f6fb;
-      --card-bg: #ffffff;
-      --text: #1e293b;
-      --muted: #64748b;
-      --border: #e2e8f0;
-      --primary: #4f46e5;
-      --month-color: #3b82f6;
-      --today-color: #10b981;
-      --year-color: #a855f7;
-      --danger: #ef4444;
-    }
-
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Sans", Meiryo, sans-serif;
-      -webkit-tap-highlight-color: transparent;
-    }
-
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700&display=swap');
+    
     body {
-      background-color: var(--bg);
-      color: var(--text);
-      display: flex;
-      justify-content: center;
-      padding: 24px 16px 100px;
-      min-height: 100vh;
+      font-family: 'Noto Sans JP', sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
     }
 
-    .app-container {
-      width: 100%;
-      max-width: 680px;
-      display: flex;
-      flex-direction: column;
-      gap: 20px;
+    /* iOS等のセーフエリア対応 */
+    .pb-safe {
+      padding-bottom: env(safe-area-inset-bottom, 1rem);
     }
 
-    /* ヘッダー */
-    .header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 8px 4px;
+    /* タスク削除・完了アニメーション */
+    .task-item {
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     }
-
-    .header-left {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .logo-icon {
-      width: 44px;
-      height: 44px;
-      background: #4f46e5;
-      border-radius: 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #fff;
-      font-size: 22px;
-      box-shadow: 0 4px 10px rgba(79, 70, 229, 0.3);
-    }
-
-    .header-titles h1 {
-      font-size: 1.3rem;
-      font-weight: 700;
-      color: #0f172a;
-    }
-
-    .header-titles .date-sub {
-      font-size: 0.8rem;
-      color: var(--muted);
-      margin-top: 2px;
-    }
-
-    .completed-badge {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      background: #ecfdf5;
-      color: #059669;
-      border: 1px solid #a7f3d0;
-      padding: 6px 14px;
-      border-radius: 999px;
-      font-size: 0.85rem;
-      font-weight: 600;
-    }
-
-    /* セクション */
-    .section {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-
-    .section-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 0 4px;
-    }
-
-    .section-title {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 1.05rem;
-      font-weight: 700;
-    }
-
-    .section-dot {
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-    }
-
-    .dot-month { background-color: var(--month-color); }
-    .dot-today { background-color: var(--today-color); }
-    .dot-year  { background-color: var(--year-color); }
-
-    .count-badge {
-      font-size: 0.75rem;
-      padding: 2px 8px;
-      border-radius: 12px;
-      font-weight: 600;
-    }
-
-    .badge-month { background: #eff6ff; color: var(--month-color); }
-    .badge-today { background: #ecfdf5; color: var(--today-color); }
-    .badge-year  { background: #faf5ff; color: var(--year-color); }
-
-    .btn-add-section {
-      background: transparent;
-      border: none;
-      font-size: 0.85rem;
-      font-weight: 600;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      padding: 4px 8px;
-      border-radius: 6px;
-      transition: background 0.2s;
-    }
-
-    .btn-add-section.month { color: var(--month-color); }
-    .btn-add-section.today { color: var(--today-color); }
-    .btn-add-section.year  { color: var(--year-color); }
-    .btn-add-section:hover { background: rgba(0,0,0,0.04); }
-
-    /* タスクカード */
-    .task-card {
-      background: var(--card-bg);
-      border-radius: 14px;
-      padding: 14px 16px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
-      border: 1px solid rgba(226, 232, 240, 0.8);
-      transition: transform 0.15s, box-shadow 0.15s;
-    }
-
-    .task-card:hover {
-      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.04);
-    }
-
-    .task-left {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      flex: 1;
+    .task-item.removing {
+      opacity: 0;
+      transform: translateX(30px) scale(0.95);
+      max-height: 0;
+      padding-top: 0;
+      padding-bottom: 0;
+      margin-top: 0;
+      margin-bottom: 0;
       overflow: hidden;
     }
 
-    .drag-handle {
-      color: #cbd5e1;
-      font-size: 14px;
-      cursor: grab;
-      user-select: none;
+    /* カスタムスクロールバー */
+    ::-webkit-scrollbar {
+      width: 4px;
     }
-
-    .custom-checkbox {
-      width: 20px;
-      height: 20px;
-      border: 2px solid #cbd5e1;
-      border-radius: 6px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all 0.2s;
-      flex-shrink: 0;
-    }
-
-    .custom-checkbox.checked {
-      background-color: var(--primary);
-      border-color: var(--primary);
-    }
-
-    .custom-checkbox.checked::after {
-      content: '✓';
-      color: #fff;
-      font-size: 13px;
-      font-weight: bold;
-    }
-
-    .task-info {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-      flex: 1;
-    }
-
-    .task-text {
-      font-size: 0.95rem;
-      font-weight: 500;
-      color: #1e293b;
-      cursor: pointer;
-      word-break: break-word;
-      line-height: 1.4;
-      padding: 2px 4px;
-      border-radius: 4px;
-      transition: background 0.15s;
-    }
-
-    .task-text:hover {
-      background: #f1f5f9;
-    }
-
-    .task-text.completed {
-      text-decoration: line-through;
-      color: var(--muted);
-    }
-
-    .edit-input {
-      font-size: 0.95rem;
-      padding: 4px 8px;
-      border: 1px solid var(--primary);
-      border-radius: 6px;
-      outline: none;
-      width: 100%;
-    }
-
-    .repeat-tag {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      font-size: 0.75rem;
-      color: #6366f1;
-      background: #eef2ff;
-      padding: 2px 8px;
-      border-radius: 6px;
-      width: fit-content;
-      font-weight: 500;
-    }
-
-    .btn-trash {
+    ::-webkit-scrollbar-track {
       background: transparent;
-      border: none;
-      color: #cbd5e1;
-      cursor: pointer;
-      padding: 6px;
-      font-size: 16px;
-      border-radius: 6px;
-      transition: color 0.2s;
     }
-
-    .btn-trash:hover {
-      color: var(--danger);
-    }
-
-    /* アコーディオン */
-    .accordion {
-      background: transparent;
-      border-top: 1px solid var(--border);
-      padding-top: 12px;
-      margin-top: 6px;
-    }
-
-    .accordion-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 10px 4px;
-      color: var(--muted);
-      font-size: 0.9rem;
-      font-weight: 500;
-      cursor: pointer;
-      user-select: none;
-    }
-
-    .accordion-header:hover {
-      color: var(--text);
-    }
-
-    .accordion-content {
-      display: none;
-      flex-direction: column;
-      gap: 8px;
-      margin-top: 8px;
-    }
-
-    .accordion-content.open {
-      display: flex;
-    }
-
-    /* フローティング追加ボタン */
-    .fab {
-      position: fixed;
-      bottom: 30px;
-      right: 30px;
-      width: 58px;
-      height: 58px;
-      background: #4f46e5;
-      color: white;
-      border-radius: 50%;
-      border: none;
-      font-size: 28px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      box-shadow: 0 6px 18px rgba(79, 70, 229, 0.4);
-      transition: transform 0.2s, background 0.2s;
-    }
-
-    .fab:active {
-      transform: scale(0.92);
-    }
-
-    /* モーダル */
-    .modal-overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(0, 0, 0, 0.4);
-      display: none;
-      align-items: center;
-      justify-content: center;
-      padding: 16px;
-      z-index: 100;
-    }
-
-    .modal-overlay.active {
-      display: flex;
-    }
-
-    .modal {
-      background: #fff;
-      border-radius: 20px;
-      padding: 24px;
-      width: 100%;
-      max-width: 440px;
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-    }
-
-    .modal h2 {
-      font-size: 1.15rem;
-      font-weight: 700;
-    }
-
-    .modal input, .modal select {
-      width: 100%;
-      padding: 12px;
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      font-size: 1rem;
-      outline: none;
-    }
-
-    .modal-actions {
-      display: flex;
-      justify-content: flex-end;
-      gap: 8px;
-      margin-top: 8px;
-    }
-
-    .btn-cancel {
-      background: #f1f5f9;
-      border: none;
-      padding: 10px 18px;
-      border-radius: 8px;
-      font-weight: 600;
-      color: var(--muted);
-      cursor: pointer;
-    }
-
-    .btn-save {
-      background: var(--primary);
-      border: none;
-      padding: 10px 20px;
-      border-radius: 8px;
-      font-weight: 600;
-      color: #fff;
-      cursor: pointer;
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 9999px;
     }
   </style>
 </head>
-<body>
+<body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col pb-28 select-none">
 
-<div class="app-container">
   <!-- ヘッダー -->
-  <div class="header">
-    <div class="header-left">
-      <div class="logo-icon">✓</div>
-      <div class="header-titles">
-        <h1>マイタスク</h1>
-        <div class="date-sub" id="currentDate"></div>
-      </div>
-    </div>
-    <div class="completed-badge">
-      <span>🎗</span>
-      <span id="todayCompletedText">今日 0 件完了</span>
-    </div>
-  </div>
-
-  <!-- 今月のタスク -->
-  <div class="section">
-    <div class="section-header">
-      <div class="section-title">
-        <span class="section-dot dot-month"></span>
-        <span>今月のタスク</span>
-        <span class="count-badge badge-month" id="monthCount">0件</span>
-      </div>
-      <button class="btn-add-section month" onclick="openModal('month')">＋ 追加</button>
-    </div>
-    <div class="task-list" id="monthList"></div>
-  </div>
-
-  <!-- 今日のタスク -->
-  <div class="section">
-    <div class="section-header">
-      <div class="section-title">
-        <span class="section-dot dot-today"></span>
-        <span>今日のタスク</span>
-        <span class="count-badge badge-today" id="todayCount">0件</span>
-      </div>
-      <button class="btn-add-section today" onclick="openModal('today')">＋ 追加</button>
-    </div>
-    <div class="task-list" id="todayList"></div>
-  </div>
-
-  <!-- 今年の目標 -->
-  <div class="section">
-    <div class="section-header">
-      <div class="section-title">
-        <span class="section-dot dot-year"></span>
-        <span>今年の目標</span>
-        <span class="count-badge badge-year" id="yearCount">0件</span>
-      </div>
-      <button class="btn-add-section year" onclick="openModal('year')">＋ 追加</button>
-    </div>
-    <div class="task-list" id="yearList"></div>
-  </div>
-
-  <!-- アコーディオン：次回予定の繰り返しタスク -->
-  <div class="accordion">
-    <div class="accordion-header" onclick="toggleAccordion('repeatAccordion', this)">
-      <span>🕒 次回予定の繰り返しタスク ( <span id="repeatCount">0</span> )</span>
-      <span class="arrow">⌵</span>
-    </div>
-    <div class="accordion-content" id="repeatAccordion"></div>
-  </div>
-
-  <!-- アコーディオン：完了したタスクの履歴 -->
-  <div class="accordion">
-    <div class="accordion-header" onclick="toggleAccordion('completedAccordion', this)">
-      <span>✓ 完了したタスクの履歴 ( <span id="completedHistoryCount">0</span> )</span>
-      <span class="arrow">⌵</span>
-    </div>
-    <div class="accordion-content" id="completedAccordion"></div>
-  </div>
-</div>
-
-<!-- フローティング追加ボタン -->
-<button class="fab" onclick="openModal('today')">＋</button>
-
-<!-- 追加モーダル -->
-<div class="modal-overlay" id="taskModal">
-  <div class="modal">
-    <h2>新規タスク追加</h2>
-    <input type="text" id="modalInput" placeholder="タスクの内容を入力..." />
-    <select id="modalCategory">
-      <option value="today">今日のタスク</option>
-      <option value="month">今月のタスク</option>
-      <option value="year">今年の目標</option>
-    </select>
-    <select id="modalRepeat">
-      <option value="none">繰り返しなし</option>
-      <option value="daily">🔄 1日毎 (毎日)</option>
-      <option value="weekly">🔄 毎週</option>
-      <option value="monthly">🔄 毎月</option>
-    </select>
-    <div class="modal-actions">
-      <button class="btn-cancel" onclick="closeModal()">キャンセル</button>
-      <button class="btn-save" onclick="addTaskFromModal()">追加する</button>
-    </div>
-  </div>
-</div>
-
-<script>
-  // 初期データ（初回のみスクリーンショットと同じ内容をセット）
-  const defaultTasks = [
-    { id: 1, text: "清掃事業者向けの見積りアプリの開発", category: "month", repeat: "none", completed: false, date: "" },
-    { id: 2, text: "経営の羅針盤チェック 10分", category: "today", repeat: "daily", completed: false, date: "" },
-    { id: 3, text: "8月分仕様を最終確認", category: "today", repeat: "none", completed: false, date: "" },
-    { id: 4, text: "リースキン1月度領収書帳簿入力", category: "today", repeat: "none", completed: false, date: "" },
-    { id: 5, text: "月間10万円の収入を得る仕組みを作る", category: "year", repeat: "none", completed: false, date: "" }
-  ];
-
-  let tasks = JSON.parse(localStorage.getItem('my_tasks_v3')) || defaultTasks;
-  let editingId = null;
-
-  // 日付の表示設定
-  const now = new Date();
-  const days = ['日', '月', '火', '水', '木', '金', '土'];
-  document.getElementById('currentDate').innerText = 
-    `${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日(${days[now.getDay()]})`;
-
-  function save() {
-    localStorage.setItem('my_tasks_v3', JSON.stringify(tasks));
-    render();
-  }
-
-  function render() {
-    const categories = ['month', 'today', 'year'];
-    
-    categories.forEach(cat => {
-      const listEl = document.getElementById(`${cat}List`);
-      listEl.innerHTML = '';
-      const catTasks = tasks.filter(t => t.category === cat && !t.completed);
-      document.getElementById(`${cat}Count`).innerText = `${catTasks.length}件`;
-
-      catTasks.forEach(task => {
-        listEl.appendChild(createTaskElement(task));
-      });
-    });
-
-    // 繰り返しタスク（次回予定）
-    const repeatEl = document.getElementById('repeatAccordion');
-    repeatEl.innerHTML = '';
-    const repeatTasks = tasks.filter(t => t.repeat !== 'none');
-    document.getElementById('repeatCount').innerText = repeatTasks.length;
-    repeatTasks.forEach(task => {
-      repeatEl.appendChild(createTaskElement(task, false));
-    });
-
-    // 完了履歴
-    const completedEl = document.getElementById('completedAccordion');
-    completedEl.innerHTML = '';
-    const completedTasks = tasks.filter(t => t.completed);
-    document.getElementById('completedHistoryCount').innerText = completedTasks.length;
-    document.getElementById('todayCompletedText').innerText = `今日 ${completedTasks.length} 件完了`;
-    completedTasks.forEach(task => {
-      completedEl.appendChild(createTaskElement(task, true));
-    });
-  }
-
-  function createTaskElement(task, isHistory = false) {
-    const card = document.createElement('div');
-    card.className = 'task-card';
-
-    const repeatLabels = {
-      daily: '🔄 1日毎 (毎日)',
-      weekly: '🔄 毎週',
-      monthly: '🔄 毎月'
-    };
-
-    const repeatHtml = task.repeat !== 'none' 
-      ? `<span class="repeat-tag">${repeatLabels[task.repeat]}</span>` 
-      : '';
-
-    const isEditing = editingId === task.id;
-
-    card.innerHTML = `
-      <div class="task-left">
-        <div class="drag-handle">⋮⋮</div>
-        <div class="custom-checkbox ${task.completed ? 'checked' : ''}" onclick="toggleCheck(${task.id})"></div>
-        <div class="task-info">
-          ${isEditing 
-            ? `<input type="text" class="edit-input" id="input-${task.id}" value="${escapeHtml(task.text)}" onblur="saveEdit(${task.id})" onkeydown="handleEditKey(event, ${task.id})">`
-            : `<div class="task-text ${task.completed ? 'completed' : ''}" onclick="enableEdit(${task.id})">${escapeHtml(task.text)}</div>`
-          }
-          ${repeatHtml}
+  <header class="bg-white/90 backdrop-blur-md border-b border-slate-200/80 sticky top-0 z-30 px-4 py-3 sm:px-6">
+    <div class="max-w-2xl mx-auto flex items-center justify-between">
+      <div class="flex items-center gap-2.5">
+        <div class="p-2 bg-indigo-600 text-white rounded-xl shadow-md shadow-indigo-100 flex items-center justify-center">
+          <i data-lucide="check-square" class="w-5 h-5"></i>
+        </div>
+        <div>
+          <h1 class="text-lg font-bold leading-tight text-slate-900">マイタスク</h1>
+          <p class="text-[11px] text-slate-500 font-medium" id="current-date-text">----年--月--日</p>
         </div>
       </div>
-      <button class="btn-trash" onclick="deleteTask(${task.id})">🗑</button>
-    `;
+      
+      <!-- 今日の完了数カウンター -->
+      <div class="flex items-center gap-1.5 bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-full text-xs font-semibold border border-emerald-100">
+        <i data-lucide="award" class="w-4 h-4"></i>
+        <span>今日 <span id="today-done-count">0</span> 件完了</span>
+      </div>
+    </div>
+  </header>
 
-    if (isEditing) {
-      setTimeout(() => {
-        const input = document.getElementById(`input-${task.id}`);
-        if (input) {
-          input.focus();
-          input.select();
+  <!-- メインコンテンツ (要求された順番: 今月 -> 今日 -> 今年) -->
+  <main class="max-w-2xl mx-auto w-full px-4 pt-5 space-y-6 flex-1">
+
+    <!-- 1. 今月のタスク -->
+    <section class="space-y-2.5">
+      <div class="flex items-center justify-between px-1">
+        <div class="flex items-center gap-2">
+          <span class="w-3 h-3 bg-blue-500 rounded-full shadow-sm shadow-blue-200"></span>
+          <h2 class="text-base font-bold text-slate-800 tracking-tight flex items-center gap-2">
+            今月のタスク
+            <span id="badge-month" class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-bold">0</span>
+          </h2>
+        </div>
+        <button onclick="openModal('month')" class="text-xs font-semibold text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 active:scale-95 transition-all px-2.5 py-1.5 rounded-lg flex items-center gap-1">
+          <i data-lucide="plus" class="w-3.5 h-3.5"></i> 追加
+        </button>
+      </div>
+      <div id="list-month" class="space-y-2">
+        <!-- JSで動的レンダリング -->
+      </div>
+    </section>
+
+    <!-- 2. 今日のタスク -->
+    <section class="space-y-2.5">
+      <div class="flex items-center justify-between px-1">
+        <div class="flex items-center gap-2">
+          <span class="w-3 h-3 bg-emerald-500 rounded-full shadow-sm shadow-emerald-200"></span>
+          <h2 class="text-base font-bold text-slate-800 tracking-tight flex items-center gap-2">
+            今日のタスク
+            <span id="badge-today" class="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-bold">0</span>
+          </h2>
+        </div>
+        <button onclick="openModal('today')" class="text-xs font-semibold text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 active:scale-95 transition-all px-2.5 py-1.5 rounded-lg flex items-center gap-1">
+          <i data-lucide="plus" class="w-3.5 h-3.5"></i> 追加
+        </button>
+      </div>
+      <div id="list-today" class="space-y-2">
+        <!-- JSで動的レンダリング -->
+      </div>
+    </section>
+
+    <!-- 3. 今年の目標 -->
+    <section class="space-y-2.5">
+      <div class="flex items-center justify-between px-1">
+        <div class="flex items-center gap-2">
+          <span class="w-3 h-3 bg-purple-500 rounded-full shadow-sm shadow-purple-200"></span>
+          <h2 class="text-base font-bold text-slate-800 tracking-tight flex items-center gap-2">
+            今年の目標
+            <span id="badge-year" class="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-bold">0</span>
+          </h2>
+        </div>
+        <button onclick="openModal('year')" class="text-xs font-semibold text-purple-600 hover:text-purple-700 bg-purple-50 hover:bg-purple-100 active:scale-95 transition-all px-2.5 py-1.5 rounded-lg flex items-center gap-1">
+          <i data-lucide="plus" class="w-3.5 h-3.5"></i> 追加
+        </button>
+      </div>
+      <div id="list-year" class="space-y-2">
+        <!-- JSで動的レンダリング -->
+      </div>
+    </section>
+
+    <!-- 次回予定の繰り返しタスク（待機中表示エリア） -->
+    <section class="pt-4 border-t border-slate-200/80">
+      <button onclick="toggleUpcomingSection()" class="w-full flex items-center justify-between py-2 text-xs font-semibold text-slate-500 hover:text-slate-700">
+        <span class="flex items-center gap-1.5">
+          <i data-lucide="clock" class="w-4 h-4 text-indigo-500"></i>
+          次回予定の繰り返しタスク (<span id="upcoming-count">0</span>)
+        </span>
+        <i id="upcoming-chevron" data-lucide="chevron-down" class="w-4 h-4 transition-transform duration-200"></i>
+      </button>
+
+      <div id="upcoming-list-container" class="hidden space-y-2 pt-2">
+        <div id="list-upcoming" class="space-y-2">
+          <!-- JSでレンダリング -->
+        </div>
+      </div>
+    </section>
+
+    <!-- 完了済みタスク（折りたたみ表示エリア） -->
+    <section class="pt-2 border-t border-slate-200/80">
+      <button onclick="toggleCompletedSection()" class="w-full flex items-center justify-between py-2 text-xs font-semibold text-slate-500 hover:text-slate-700">
+        <span class="flex items-center gap-1.5">
+          <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-500"></i>
+          完了したタスクの履歴 (<span id="completed-count">0</span>)
+        </span>
+        <i id="completed-chevron" data-lucide="chevron-down" class="w-4 h-4 transition-transform duration-200"></i>
+      </button>
+
+      <div id="completed-list-container" class="hidden space-y-2 pt-2">
+        <div id="list-completed" class="space-y-2">
+          <!-- JSでレンダリング -->
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- スマホ用フローティング「＋」ボタン -->
+  <button id="fab-add" onclick="openModal()" aria-label="タスクを追加" class="fixed right-5 bottom-6 sm:right-8 sm:bottom-8 w-14 h-14 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white rounded-full shadow-xl shadow-indigo-500/30 flex items-center justify-center transition-all duration-200 active:scale-90 z-40">
+    <i data-lucide="plus" class="w-8 h-8"></i>
+  </button>
+
+  <!-- タスク追加 / 編集 モーダル -->
+  <div id="modal-backdrop" onclick="closeModalOnBackdrop(event)" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-end sm:items-center justify-center opacity-0 pointer-events-none transition-opacity duration-200">
+    <div id="modal-container" class="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-2xl p-5 sm:p-6 shadow-2xl transform translate-y-full sm:translate-y-4 transition-transform duration-200 max-h-[90vh] overflow-y-auto pb-safe">
+      
+      <!-- スマホ用ハンドルバー -->
+      <div class="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-3 sm:hidden"></div>
+
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+        <h3 id="modal-heading" class="text-base font-bold text-slate-800 flex items-center gap-2">
+          <i data-lucide="plus-circle" id="modal-heading-icon" class="w-5 h-5 text-indigo-600"></i>
+          <span>新しいタスクを追加</span>
+        </h3>
+        <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600 p-1.5 rounded-full hover:bg-slate-100 active:bg-slate-200">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form id="task-form" onsubmit="handleTaskSubmit(event)" class="space-y-4">
+        
+        <!-- タスク区分選択 -->
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-2">タスクの分類 <span class="text-red-500">*</span></label>
+          <div class="grid grid-cols-3 gap-2">
+            <label class="cursor-pointer">
+              <input type="radio" name="category" value="month" class="peer sr-only">
+              <div class="text-center py-2.5 px-2 rounded-xl border-2 border-slate-200 peer-checked:border-blue-500 peer-checked:bg-blue-50/80 peer-checked:text-blue-700 text-xs font-bold text-slate-600 transition-all active:scale-95 flex flex-col items-center gap-1">
+                <i data-lucide="calendar" class="w-4 h-4"></i>
+                今月
+              </div>
+            </label>
+            <label class="cursor-pointer">
+              <input type="radio" name="category" value="today" class="peer sr-only" checked>
+              <div class="text-center py-2.5 px-2 rounded-xl border-2 border-slate-200 peer-checked:border-emerald-500 peer-checked:bg-emerald-50/80 peer-checked:text-emerald-700 text-xs font-bold text-slate-600 transition-all active:scale-95 flex flex-col items-center gap-1">
+                <i data-lucide="sun" class="w-4 h-4"></i>
+                今日
+              </div>
+            </label>
+            <label class="cursor-pointer">
+              <input type="radio" name="category" value="year" class="peer sr-only">
+              <div class="text-center py-2.5 px-2 rounded-xl border-2 border-slate-200 peer-checked:border-purple-500 peer-checked:bg-purple-50/80 peer-checked:text-purple-700 text-xs font-bold text-slate-600 transition-all active:scale-95 flex flex-col items-center gap-1">
+                <i data-lucide="target" class="w-4 h-4"></i>
+                今年
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <!-- タスクタイトル -->
+        <div>
+          <label for="task-title" class="block text-xs font-bold text-slate-600 mb-1">タスク内容 <span class="text-red-500">*</span></label>
+          <input type="text" id="task-title" required placeholder="例: 毎朝のウォーキング、書類提出..." class="w-full px-3.5 py-3 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all bg-slate-50/50">
+        </div>
+
+        <!-- 詳細メモ -->
+        <div>
+          <label for="task-note" class="block text-xs font-bold text-slate-600 mb-1">メモ (任意)</label>
+          <textarea id="task-note" rows="2" placeholder="詳細やメモがあれば入力..." class="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all bg-slate-50/50 resize-none"></textarea>
+        </div>
+
+        <!-- 繰り返し設定セクション -->
+        <div class="border-t border-slate-100 pt-3.5">
+          <div class="flex items-center justify-between mb-2">
+            <label class="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+              <i data-lucide="repeat" class="w-4 h-4 text-indigo-600"></i>
+              繰り返しタスクに設定
+            </label>
+            <label class="relative inline-flex items-center cursor-pointer p-1">
+              <input type="checkbox" id="repeat-toggle" onchange="toggleRepeatFields()" class="sr-only peer">
+              <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[6px] after:left-[6px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+            </label>
+          </div>
+
+          <!-- 繰り返し詳細設定 -->
+          <div id="repeat-options" class="hidden space-y-3 pt-2 bg-slate-50 p-3.5 rounded-2xl border border-slate-200/80">
+            <!-- 頻度選択 -->
+            <div>
+              <label for="repeat-interval" class="block text-xs font-semibold text-slate-600 mb-1">繰り返しの頻度</label>
+              <select id="repeat-interval" onchange="handleIntervalChange()" class="w-full px-3 py-2.5 text-xs font-medium rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500">
+                <option value="daily">1日毎 (毎日発生)</option>
+                <option value="weekly">1週間毎 (毎週)</option>
+                <option value="monthly">1ヶ月毎 (毎月)</option>
+                <option value="3months">3ヶ月毎</option>
+                <option value="6months">6ヶ月毎</option>
+              </select>
+            </div>
+
+            <!-- 曜日指定 (1週間毎の場合) -->
+            <div id="weekday-selector" class="hidden">
+              <label class="block text-xs font-semibold text-slate-600 mb-1.5">繰り返す曜日</label>
+              <div class="flex justify-between gap-1">
+                <button type="button" onclick="toggleDayOfWeek(0)" data-day="0" class="day-btn flex-1 py-2 text-xs font-bold rounded-lg border border-slate-200 bg-white text-slate-600">日</button>
+                <button type="button" onclick="toggleDayOfWeek(1)" data-day="1" class="day-btn flex-1 py-2 text-xs font-bold rounded-lg border border-slate-200 bg-white text-slate-600">月</button>
+                <button type="button" onclick="toggleDayOfWeek(2)" data-day="2" class="day-btn flex-1 py-2 text-xs font-bold rounded-lg border border-slate-200 bg-white text-slate-600">火</button>
+                <button type="button" onclick="toggleDayOfWeek(3)" data-day="3" class="day-btn flex-1 py-2 text-xs font-bold rounded-lg border border-slate-200 bg-white text-slate-600">水</button>
+                <button type="button" onclick="toggleDayOfWeek(4)" data-day="4" class="day-btn flex-1 py-2 text-xs font-bold rounded-lg border border-slate-200 bg-white text-slate-600">木</button>
+                <button type="button" onclick="toggleDayOfWeek(5)" data-day="5" class="day-btn flex-1 py-2 text-xs font-bold rounded-lg border border-slate-200 bg-white text-slate-600">金</button>
+                <button type="button" onclick="toggleDayOfWeek(6)" data-day="6" class="day-btn flex-1 py-2 text-xs font-bold rounded-lg border border-slate-200 bg-white text-slate-600">土</button>
+              </div>
+            </div>
+
+            <!-- 日にち指定 (月毎の場合) -->
+            <div id="monthday-selector" class="hidden">
+              <label for="repeat-monthday" class="block text-xs font-semibold text-slate-600 mb-1">繰り返す日</label>
+              <select id="repeat-monthday" class="w-full px-3 py-2.5 text-xs font-medium rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- 保存ボタン -->
+        <div class="pt-2">
+          <button type="submit" id="modal-submit-btn" class="w-full py-3.5 px-4 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-bold rounded-xl text-sm shadow-lg shadow-indigo-200 transition-all flex items-center justify-center gap-2 active:scale-[0.98]">
+            <i data-lucide="check" class="w-4 h-4"></i>
+            <span>タスクを保存する</span>
+          </button>
+        </div>
+
+      </form>
+
+    </div>
+  </div>
+
+  <script>
+    // --- 状態管理 ---
+    let tasks = [];
+    let selectedDaysOfWeek = [1];
+    let isCompletedOpen = false;
+    let isUpcomingOpen = false;
+    let editingTaskId = null; // ★編集対象のタスクID
+
+    function getTodayString() {
+      const now = new Date();
+      const y = now.getFullYear();
+      const m = String(now.getMonth() + 1).padStart(2, '0');
+      const d = String(now.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+
+    function calculateNextDueDate(task) {
+      if (!task || !task.repeat || !task.repeat.enabled) return null;
+      
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      let baseDate = new Date(today);
+      if (task.dueDate) {
+        const parts = task.dueDate.split('-');
+        if (parts.length === 3) {
+          const taskDate = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+          if (taskDate >= today) {
+            baseDate = taskDate;
+          }
         }
-      }, 0);
-    }
-
-    return card;
-  }
-
-  function escapeHtml(text) {
-    return text.replace(/[&<>"']/g, m => ({
-      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
-    })[m]);
-  }
-
-  // 編集機能
-  function enableEdit(id) {
-    editingId = id;
-    render();
-  }
-
-  function saveEdit(id) {
-    const input = document.getElementById(`input-${id}`);
-    if (input) {
-      const newText = input.value.trim();
-      if (newText) {
-        const target = tasks.find(t => t.id === id);
-        if (target) target.text = newText;
       }
+
+      const repeat = task.repeat;
+
+      if (repeat.interval === 'daily') {
+        baseDate.setDate(baseDate.getDate() + 1);
+      } else if (repeat.interval === 'weekly') {
+        if (repeat.daysOfWeek && repeat.daysOfWeek.length > 0) {
+          let nextDate = new Date(baseDate);
+          nextDate.setDate(nextDate.getDate() + 1);
+          while (!repeat.daysOfWeek.includes(nextDate.getDay())) {
+            nextDate.setDate(nextDate.getDate() + 1);
+          }
+          baseDate = nextDate;
+        } else {
+          baseDate.setDate(baseDate.getDate() + 7);
+        }
+      } else if (['monthly', '3months', '6months'].includes(repeat.interval)) {
+        let monthsToAdd = 1;
+        if (repeat.interval === '3months') monthsToAdd = 3;
+        if (repeat.interval === '6months') monthsToAdd = 6;
+
+        let targetYear = baseDate.getFullYear();
+        let targetMonth = baseDate.getMonth() + monthsToAdd;
+
+        if (repeat.monthDay === 'last') {
+          const lastDay = new Date(targetYear, targetMonth + 1, 0).getDate();
+          baseDate = new Date(targetYear, targetMonth, lastDay);
+        } else {
+          const targetDay = parseInt(repeat.monthDay, 10) || baseDate.getDate();
+          const maxDaysInMonth = new Date(targetYear, targetMonth + 1, 0).getDate();
+          const actualDay = Math.min(targetDay, maxDaysInMonth);
+          baseDate = new Date(targetYear, targetMonth, actualDay);
+        }
+      }
+
+      const y = baseDate.getFullYear();
+      const m = String(baseDate.getMonth() + 1).padStart(2, '0');
+      const d = String(baseDate.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
     }
-    editingId = null;
-    save();
-  }
 
-  function handleEditKey(e, id) {
-    if (e.key === 'Enter') {
-      saveEdit(id);
-    } else if (e.key === 'Escape') {
-      editingId = null;
-      render();
+    function isTaskVisible(task) {
+      if (task.completed) return false;
+      const todayStr = getTodayString();
+      if (task.dueDate && task.dueDate > todayStr) {
+        return false;
+      }
+      return true;
     }
-  }
 
-  function toggleCheck(id) {
-    const task = tasks.find(t => t.id === id);
-    if (task) {
-      task.completed = !task.completed;
-      save();
-    }
-  }
+    // --- 初期化 ---
+    document.addEventListener('DOMContentLoaded', () => {
+      const now = new Date();
+      const days = ['日', '月', '火', '水', '木', '金', '土'];
+      document.getElementById('current-date-text').textContent = 
+        `${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日(${days[now.getDay()]})`;
 
-  function deleteTask(id) {
-    tasks = tasks.filter(t => t.id !== id);
-    save();
-  }
+      const monthdaySelect = document.getElementById('repeat-monthday');
+      for (let i = 1; i <= 31; i++) {
+        const opt = document.createElement('option');
+        opt.value = i;
+        opt.textContent = `${i}日`;
+        monthdaySelect.appendChild(opt);
+      }
+      const lastOpt = document.createElement('option');
+      lastOpt.value = 'last';
+      lastOpt.textContent = '月末日';
+      monthdaySelect.appendChild(lastOpt);
 
-  // モーダル操作
-  function openModal(defaultCat = 'today') {
-    document.getElementById('modalCategory').value = defaultCat;
-    document.getElementById('modalInput').value = '';
-    document.getElementById('modalRepeat').value = 'none';
-    document.getElementById('taskModal').classList.add('active');
-    document.getElementById('modalInput').focus();
-  }
-
-  function closeModal() {
-    document.getElementById('taskModal').classList.remove('active');
-  }
-
-  function addTaskFromModal() {
-    const text = document.getElementById('modalInput').value.trim();
-    if (!text) return;
-
-    tasks.push({
-      id: Date.now(),
-      text: text,
-      category: document.getElementById('modalCategory').value,
-      repeat: document.getElementById('modalRepeat').value,
-      completed: false,
-      date: new Date().toISOString()
+      loadTasks();
+      renderAllTasks();
+      updateDaysOfWeekUI();
     });
 
-    closeModal();
-    save();
-  }
+    // --- ローカルストレージ保存・読込 ---
+    function saveTasks() {
+      localStorage.setItem('my_app_tasks_v3', JSON.stringify(tasks));
+    }
 
-  function toggleAccordion(id, header) {
-    const content = document.getElementById(id);
-    content.classList.toggle('open');
-    const arrow = header.querySelector('.arrow');
-    arrow.innerText = content.classList.contains('open') ? '∧' : '⌵';
-  }
+    function loadTasks() {
+      const stored = localStorage.getItem('my_app_tasks_v3');
+      if (stored) {
+        try {
+          tasks = JSON.parse(stored);
+        } catch (e) {
+          tasks = [];
+        }
+      } else {
+        const todayStr = getTodayString();
+        tasks = [
+          {
+            id: 'task-1',
+            title: '清掃事業者向けの見積りアプリの開発',
+            note: '',
+            category: 'month',
+            completed: false,
+            createdAt: todayStr,
+            lastGeneratedDate: todayStr,
+            dueDate: todayStr,
+            repeat: { enabled: false }
+          },
+          {
+            id: 'task-2',
+            title: '経営の羅針盤チェック 10分',
+            note: '',
+            category: 'today',
+            completed: false,
+            createdAt: todayStr,
+            lastGeneratedDate: todayStr,
+            dueDate: todayStr,
+            repeat: { enabled: true, interval: 'daily' }
+          },
+          {
+            id: 'task-3',
+            title: '8月分仕様を最終確認',
+            note: '',
+            category: 'today',
+            completed: false,
+            createdAt: todayStr,
+            lastGeneratedDate: todayStr,
+            dueDate: todayStr,
+            repeat: { enabled: false }
+          },
+          {
+            id: 'task-4',
+            title: 'リースキン1月度領収書帳簿入力',
+            note: '',
+            category: 'today',
+            completed: false,
+            createdAt: todayStr,
+            lastGeneratedDate: todayStr,
+            dueDate: todayStr,
+            repeat: { enabled: false }
+          },
+          {
+            id: 'task-5',
+            title: '月間10万円の収入を得る仕組みを作る',
+            note: '',
+            category: 'year',
+            completed: false,
+            createdAt: todayStr,
+            lastGeneratedDate: todayStr,
+            dueDate: todayStr,
+            repeat: { enabled: false }
+          }
+        ];
+        saveTasks();
+      }
+    }
 
-  // 初回描画
-  render();
-</script>
+    // --- レンダリング機能 ---
+    function renderAllTasks() {
+      renderCategoryList('month', 'list-month', 'badge-month');
+      renderCategoryList('today', 'list-today', 'badge-today');
+      renderCategoryList('year', 'list-year', 'badge-year');
+      renderUpcomingList();
+      renderCompletedList();
 
+      const todayStr = getTodayString();
+      const todayDone = tasks.filter(t => t.completed && t.completedAt === todayStr).length;
+      document.getElementById('today-done-count').textContent = todayDone;
+
+      lucide.createIcons();
+
+      initSortable('list-month', 'month');
+      initSortable('list-today', 'today');
+      initSortable('list-year', 'year');
+    }
+
+    function renderCategoryList(categoryKey, containerId, badgeId) {
+      const container = document.getElementById(containerId);
+      const badge = document.getElementById(badgeId);
+
+      const categoryTasks = tasks.filter(t => t.category === categoryKey && isTaskVisible(t));
+      badge.textContent = `${categoryTasks.length}件`;
+
+      if (categoryTasks.length === 0) {
+        container.innerHTML = `
+          <div class="py-4 px-3 border border-dashed border-slate-200 rounded-2xl text-center text-slate-400 text-xs">
+            タスクはありません
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = categoryTasks.map(task => {
+        const repeatText = getRepeatLabel(task.repeat);
+        
+        return `
+          <div id="task-card-${task.id}" class="task-item bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200/90 shadow-sm active:border-indigo-300 flex items-center gap-2.5">
+            
+            <!-- ドラッグ用つまみハンドル -->
+            <div class="drag-handle cursor-grab active:cursor-grabbing p-1 text-slate-300 hover:text-indigo-600 active:text-indigo-700 touch-none flex items-center justify-center transition-colors">
+              <i data-lucide="grip-vertical" class="w-4 h-4"></i>
+            </div>
+
+            <!-- 完了チェックボタン -->
+            <button onclick="completeTask('${task.id}')" aria-label="完了にする" class="flex-shrink-0 w-6 h-6 rounded-lg border-2 border-slate-300 hover:border-emerald-500 hover:bg-emerald-50 active:scale-90 flex items-center justify-center transition-all">
+            </button>
+
+            <!-- タスク情報（クリックで編集も可能） -->
+            <div class="flex-1 min-w-0 cursor-pointer" onclick="openEditModal('${task.id}')">
+              <div class="text-sm font-bold text-slate-800 leading-snug break-words hover:text-indigo-600 transition-colors">
+                ${escapeHtml(task.title)}
+              </div>
+              
+              ${task.note ? `<p class="text-xs text-slate-500 mt-0.5 leading-relaxed break-words">${escapeHtml(task.note)}</p>` : ''}
+
+              <!-- 繰り返しバッジ -->
+              ${task.repeat && task.repeat.enabled ? `
+                <div class="mt-1.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 text-[11px] font-semibold">
+                  <i data-lucide="repeat" class="w-3 h-3"></i>
+                  <span>${repeatText}</span>
+                </div>
+              ` : ''}
+            </div>
+
+            <!-- ★編集ボタン -->
+            <button onclick="openEditModal('${task.id}')" aria-label="編集" class="p-1.5 text-slate-400 hover:text-indigo-600 active:scale-90 rounded-lg hover:bg-slate-100 transition-all">
+              <i data-lucide="edit-3" class="w-4 h-4"></i>
+            </button>
+
+            <!-- 削除ボタン -->
+            <button onclick="deleteTask('${task.id}')" aria-label="削除" class="p-1.5 text-slate-400 hover:text-red-500 active:scale-90 rounded-lg hover:bg-slate-100 transition-all">
+              <i data-lucide="trash-2" class="w-4 h-4"></i>
+            </button>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // --- ドラッグ＆ドロップ並び替え初期化 ---
+    function initSortable(containerId, category) {
+      const container = document.getElementById(containerId);
+      if (!container) return;
+
+      if (container._sortable) {
+        container._sortable.destroy();
+      }
+
+      container._sortable = new Sortable(container, {
+        handle: '.drag-handle',
+        animation: 200,
+        ghostClass: 'opacity-30',
+        chosenClass: 'bg-indigo-50/80',
+        onEnd: function (evt) {
+          const { oldIndex, newIndex } = evt;
+          if (oldIndex === newIndex || oldIndex === undefined || newIndex === undefined) return;
+
+          const categoryTasks = tasks.filter(t => t.category === category && isTaskVisible(t));
+          const [movedTask] = categoryTasks.splice(oldIndex, 1);
+          categoryTasks.splice(newIndex, 0, movedTask);
+
+          let catIdx = 0;
+          tasks = tasks.map(t => {
+            if (t.category === category && isTaskVisible(t)) {
+              return categoryTasks[catIdx++];
+            }
+            return t;
+          });
+
+          saveTasks();
+        }
+      });
+    }
+
+    // 完了したタスクの履歴リスト
+    function renderCompletedList() {
+      const container = document.getElementById('list-completed');
+      const countSpan = document.getElementById('completed-count');
+      const completedTasks = tasks.filter(t => t.completed);
+
+      countSpan.textContent = completedTasks.length;
+
+      if (completedTasks.length === 0) {
+        container.innerHTML = `<p class="text-xs text-slate-400 text-center py-3">完了したタスクはありません</p>`;
+        return;
+      }
+
+      container.innerHTML = completedTasks.map(task => `
+        <div class="bg-slate-200/60 p-3 rounded-xl flex items-center justify-between text-xs text-slate-500">
+          <div class="flex items-center gap-2 min-w-0 flex-1 pr-2">
+            <i data-lucide="check-circle" class="w-4 h-4 text-emerald-500 flex-shrink-0"></i>
+            <span class="line-through truncate">${escapeHtml(task.title)}</span>
+          </div>
+          <button onclick="restoreTask('${task.id}')" class="text-indigo-600 hover:underline text-[11px] font-bold flex-shrink-0">
+            元に戻す
+          </button>
+        </div>
+      `).join('');
+    }
+
+    // --- 完了処理 ---
+    function completeTask(id) {
+      const card = document.getElementById(`task-card-${id}`);
+      if (card) {
+        card.classList.add('removing');
+      }
+
+      setTimeout(() => {
+        const todayStr = getTodayString();
+        let targetTask = tasks.find(t => t.id === id);
+
+        if (!targetTask) return;
+
+        targetTask.completed = true;
+        targetTask.completedAt = todayStr;
+
+        if (targetTask.repeat && targetTask.repeat.enabled) {
+          generateNextRepeatTask(targetTask);
+        }
+
+        saveTasks();
+        renderAllTasks();
+      }, 250);
+    }
+
+    function generateNextRepeatTask(baseTask) {
+      const todayStr = getTodayString();
+      const nextDueDate = calculateNextDueDate(baseTask);
+      
+      const newNextTask = {
+        ...baseTask,
+        id: Date.now().toString(),
+        completed: false,
+        completedAt: null,
+        createdAt: todayStr,
+        lastGeneratedDate: todayStr,
+        dueDate: nextDueDate
+      };
+
+      tasks.unshift(newNextTask);
+    }
+
+    // 待機中繰り返しタスク
+    function renderUpcomingList() {
+      const container = document.getElementById('list-upcoming');
+      const countSpan = document.getElementById('upcoming-count');
+      const todayStr = getTodayString();
+
+      const upcomingTasks = tasks.filter(t => !t.completed && t.dueDate && t.dueDate > todayStr);
+      countSpan.textContent = upcomingTasks.length;
+
+      if (upcomingTasks.length === 0) {
+        container.innerHTML = `<p class="text-xs text-slate-400 text-center py-3">待機中の繰り返しタスクはありません</p>`;
+        return;
+      }
+
+      container.innerHTML = upcomingTasks.map(task => {
+        let formattedDate = task.dueDate;
+        if (task.dueDate) {
+          const p = task.dueDate.split('-');
+          if (p.length === 3) formattedDate = `${parseInt(p[1], 10)}月${parseInt(p[2], 10)}日`;
+        }
+
+        return `
+          <div class="bg-indigo-50/60 border border-indigo-100 p-3 rounded-xl flex items-center justify-between text-xs text-slate-700">
+            <div class="flex items-center gap-2 min-w-0 flex-1 pr-2">
+              <i data-lucide="clock" class="w-4 h-4 text-indigo-500 flex-shrink-0"></i>
+              <span class="font-bold truncate">${escapeHtml(task.title)}</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="bg-indigo-100 text-indigo-700 font-bold px-2 py-0.5 rounded-md text-[11px] flex-shrink-0">
+                次回: ${formattedDate}
+              </span>
+              <button onclick="openEditModal('${task.id}')" class="text-slate-400 hover:text-indigo-600 p-1 rounded">
+                <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function toggleUpcomingSection() {
+      isUpcomingOpen = !isUpcomingOpen;
+      const container = document.getElementById('upcoming-list-container');
+      const chevron = document.getElementById('upcoming-chevron');
+
+      if (isUpcomingOpen) {
+        container.classList.remove('hidden');
+        chevron.style.transform = 'rotate(180deg)';
+      } else {
+        container.classList.add('hidden');
+        chevron.style.transform = 'rotate(0deg)';
+      }
+    }
+
+    function restoreTask(id) {
+      tasks = tasks.map(t => t.id === id ? { ...t, completed: false } : t);
+      saveTasks();
+      renderAllTasks();
+    }
+
+    function deleteTask(id) {
+      const card = document.getElementById(`task-card-${id}`);
+      if (card) {
+        card.classList.add('removing');
+        setTimeout(() => {
+          tasks = tasks.filter(t => t.id !== id);
+          saveTasks();
+          renderAllTasks();
+        }, 200);
+      } else {
+        tasks = tasks.filter(t => t.id !== id);
+        saveTasks();
+        renderAllTasks();
+      }
+    }
+
+    function toggleCompletedSection() {
+      isCompletedOpen = !isCompletedOpen;
+      const container = document.getElementById('completed-list-container');
+      const chevron = document.getElementById('completed-chevron');
+
+      if (isCompletedOpen) {
+        container.classList.remove('hidden');
+        chevron.style.transform = 'rotate(180deg)';
+      } else {
+        container.classList.add('hidden');
+        chevron.style.transform = 'rotate(0deg)';
+      }
+    }
+
+    function getRepeatLabel(repeat) {
+      if (!repeat || !repeat.enabled) return '';
+      const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+      
+      switch (repeat.interval) {
+        case 'daily':
+          return '1日毎 (毎日)';
+        case 'weekly':
+          if (repeat.daysOfWeek && repeat.daysOfWeek.length > 0) {
+            const days = repeat.daysOfWeek.map(d => dayNames[d]).join('・');
+            return `1週間毎 (${days})`;
+          }
+          return '1週間毎';
+        case 'monthly':
+          const mDay = repeat.monthDay === 'last' ? '月末' : `${repeat.monthDay}日`;
+          return `1ヶ月毎 (${mDay})`;
+        case '3months':
+          const mDay3 = repeat.monthDay === 'last' ? '月末' : `${repeat.monthDay}日`;
+          return `3ヶ月毎 (${mDay3})`;
+        case '6months':
+          const mDay6 = repeat.monthDay === 'last' ? '月末' : `${repeat.monthDay}日`;
+          return `6ヶ月毎 (${mDay6})`;
+        default:
+          return '繰り返し';
+      }
+    }
+
+    // --- 新規追加モーダル ---
+    function openModal(defaultCategory = 'today') {
+      editingTaskId = null;
+      document.getElementById('task-form').reset();
+      
+      document.getElementById('modal-heading').querySelector('span').textContent = '新しいタスクを追加';
+      document.getElementById('modal-submit-btn').querySelector('span').textContent = 'タスクを保存する';
+      
+      const categoryRadio = document.querySelector(`input[name="category"][value="${defaultCategory}"]`);
+      if (categoryRadio) categoryRadio.checked = true;
+
+      document.getElementById('repeat-toggle').checked = false;
+      selectedDaysOfWeek = [1];
+      updateDaysOfWeekUI();
+      toggleRepeatFields();
+
+      showModalUI();
+    }
+
+    // ★タスク編集モーダルを開く
+    function openEditModal(taskId) {
+      const task = tasks.find(t => t.id === taskId);
+      if (!task) return;
+
+      editingTaskId = taskId;
+      document.getElementById('task-form').reset();
+
+      document.getElementById('modal-heading').querySelector('span').textContent = 'タスクを編集';
+      document.getElementById('modal-submit-btn').querySelector('span').textContent = '変更を保存する';
+
+      // 既存データのセット
+      document.getElementById('task-title').value = task.title || '';
+      document.getElementById('task-note').value = task.note || '';
+
+      const categoryRadio = document.querySelector(`input[name="category"][value="${task.category}"]`);
+      if (categoryRadio) categoryRadio.checked = true;
+
+      const isRepeat = !!(task.repeat && task.repeat.enabled);
+      document.getElementById('repeat-toggle').checked = isRepeat;
+
+      if (isRepeat) {
+        document.getElementById('repeat-interval').value = task.repeat.interval || 'daily';
+        if (task.repeat.daysOfWeek) {
+          selectedDaysOfWeek = [...task.repeat.daysOfWeek];
+        }
+        if (task.repeat.monthDay) {
+          document.getElementById('repeat-monthday').value = task.repeat.monthDay;
+        }
+      } else {
+        selectedDaysOfWeek = [1];
+      }
+
+      updateDaysOfWeekUI();
+      toggleRepeatFields();
+      showModalUI();
+    }
+
+    function showModalUI() {
+      const backdrop = document.getElementById('modal-backdrop');
+      const container = document.getElementById('modal-container');
+
+      backdrop.classList.remove('pointer-events-none');
+      backdrop.classList.replace('opacity-0', 'opacity-100');
+      container.classList.replace('translate-y-full', 'translate-y-0');
+      container.classList.replace('sm:translate-y-4', 'sm:translate-y-0');
+
+      lucide.createIcons();
+      setTimeout(() => document.getElementById('task-title').focus(), 150);
+    }
+
+    function closeModal() {
+      const backdrop = document.getElementById('modal-backdrop');
+      const container = document.getElementById('modal-container');
+
+      backdrop.classList.replace('opacity-100', 'opacity-0');
+      container.classList.replace('translate-y-0', 'translate-y-full');
+      container.classList.replace('sm:translate-y-0', 'sm:translate-y-4');
+
+      setTimeout(() => {
+        backdrop.classList.add('pointer-events-none');
+        editingTaskId = null;
+      }, 200);
+    }
+
+    function closeModalOnBackdrop(e) {
+      if (e.target.id === 'modal-backdrop') {
+        closeModal();
+      }
+    }
+
+    function toggleRepeatFields() {
+      const isChecked = document.getElementById('repeat-toggle').checked;
+      const optionsDiv = document.getElementById('repeat-options');
+      
+      if (isChecked) {
+        optionsDiv.classList.remove('hidden');
+        handleIntervalChange();
+      } else {
+        optionsDiv.classList.add('hidden');
+      }
+    }
+
+    function handleIntervalChange() {
+      const interval = document.getElementById('repeat-interval').value;
+      const weekdaySelector = document.getElementById('weekday-selector');
+      const monthdaySelector = document.getElementById('monthday-selector');
+
+      if (interval === 'weekly') {
+        weekdaySelector.classList.remove('hidden');
+        monthdaySelector.classList.add('hidden');
+      } else if (['monthly', '3months', '6months'].includes(interval)) {
+        weekdaySelector.classList.add('hidden');
+        monthdaySelector.classList.remove('hidden');
+      } else {
+        weekdaySelector.classList.add('hidden');
+        monthdaySelector.classList.add('hidden');
+      }
+    }
+
+    function toggleDayOfWeek(dayIndex) {
+      if (selectedDaysOfWeek.includes(dayIndex)) {
+        if (selectedDaysOfWeek.length > 1) {
+          selectedDaysOfWeek = selectedDaysOfWeek.filter(d => d !== dayIndex);
+        }
+      } else {
+        selectedDaysOfWeek.push(dayIndex);
+      }
+      updateDaysOfWeekUI();
+    }
+
+    function updateDaysOfWeekUI() {
+      const buttons = document.querySelectorAll('.day-btn');
+      buttons.forEach(btn => {
+        const day = parseInt(btn.getAttribute('data-day'), 10);
+        if (selectedDaysOfWeek.includes(day)) {
+          btn.className = 'day-btn flex-1 py-2 text-xs font-bold rounded-lg bg-indigo-600 text-white transition-all shadow-sm';
+        } else {
+          btn.className = 'day-btn flex-1 py-2 text-xs font-bold rounded-lg border border-slate-200 bg-white text-slate-600 transition-all';
+        }
+      });
+    }
+
+    // --- 送信処理（新規追加・編集共通） ---
+    function handleTaskSubmit(e) {
+      e.preventDefault();
+
+      const title = document.getElementById('task-title').value.trim();
+      const note = document.getElementById('task-note').value.trim();
+      const category = document.querySelector('input[name="category"]:checked').value;
+      
+      const isRepeat = document.getElementById('repeat-toggle').checked;
+      const interval = document.getElementById('repeat-interval').value;
+      const monthDay = document.getElementById('repeat-monthday').value;
+
+      if (!title) return;
+
+      const todayStr = getTodayString();
+
+      if (editingTaskId) {
+        // ★既存タスクの編集・更新
+        tasks = tasks.map(t => {
+          if (t.id === editingTaskId) {
+            return {
+              ...t,
+              title: title,
+              note: note,
+              category: category,
+              repeat: {
+                enabled: isRepeat,
+                interval: interval,
+                daysOfWeek: selectedDaysOfWeek,
+                monthDay: monthDay
+              }
+            };
+          }
+          return t;
+        });
+      } else {
+        // 新規タスク追加
+        const newTask = {
+          id: Date.now().toString(),
+          title: title,
+          note: note,
+          category: category,
+          completed: false,
+          createdAt: todayStr,
+          lastGeneratedDate: todayStr,
+          dueDate: todayStr,
+          repeat: {
+            enabled: isRepeat,
+            interval: interval,
+            daysOfWeek: selectedDaysOfWeek,
+            monthDay: monthDay
+          }
+        };
+        tasks.unshift(newTask);
+      }
+
+      saveTasks();
+      renderAllTasks();
+      closeModal();
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return str
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+  </script>
 </body>
 </html>
