@@ -16,7 +16,7 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import { 
       getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc 
-    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js"; import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyCg2kOA4IVNwMsr4sPzLTpOrAw8u-b8_yU",
@@ -36,7 +36,7 @@
     window.fsOnSnapshot = onSnapshot;
     window.fsDoc = doc;
     window.fsSetDoc = setDoc;
-    window.fsDeleteDoc = deleteDoc;
+    window.fsDeleteDoc = deleteDoc; const auth = getAuth(app); const OWNER_EMAIL = "heat1117412@gmail.com"; window.__authed = false; let authSyncRetry = false; const authOverlay = document.createElement("div"); authOverlay.id = "auth-overlay"; authOverlay.setAttribute("style", "position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:#fff;text-align:center;padding:24px;"); authOverlay.innerHTML = '<p>このアプリは非公開です。所有者のアカウントでログインしてください。</p><button type="button">Googleでログイン</button><p id="auth-message"></p>'; document.body.appendChild(authOverlay); function startSyncWhenReady() { if (window.__syncStarted) return; if (typeof window.initFirebaseSync === "function") { window.initFirebaseSync(); return; } if (!authSyncRetry) { authSyncRetry = true; document.addEventListener("DOMContentLoaded", startSyncWhenReady); setTimeout(startSyncWhenReady, 500); } } authOverlay.querySelector("button").addEventListener("click", async () => { try { await signInWithPopup(auth, new GoogleAuthProvider()); } catch (e) { await signInWithRedirect(auth, new GoogleAuthProvider()); } }); getRedirectResult(auth).catch(() => {}); onAuthStateChanged(auth, async (user) => { if (!user) { window.__authed = false; if (!document.body.contains(authOverlay)) document.body.appendChild(authOverlay); return; } if (user.email !== OWNER_EMAIL) { window.__authed = false; authOverlay.querySelector("#auth-message").textContent = "このアカウントは使用できません。所有者のアカウントでログインしてください。"; await signOut(auth); return; } window.__authed = true; authOverlay.remove(); startSyncWhenReady(); });
 
     // Firebase同期の初期化呼び出し
     if (window.initFirebaseSync) {
@@ -385,7 +385,7 @@
     }
 
     // --- Firebase リアルタイム同期設定 ---
-    window.initFirebaseSync = function() {
+    window.initFirebaseSync = function() { if (!window.__authed) return; if (window.__syncStarted) return; window.__syncStarted = true;
       if (!window.db || !window.fsOnSnapshot) return;
       isFirebaseReady = true;
 
